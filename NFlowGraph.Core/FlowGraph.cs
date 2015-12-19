@@ -12,6 +12,7 @@ namespace NFlowGraph.Core
         public readonly ISet<DirectedEdge<IModule>> _edges = new HashSet<DirectedEdge<IModule>>();
         
         private IEnumerable<IModule> _topologicalOrder = null;
+        private Dictionary<IModule, IEnumerable<IModule>> _antecedentsPerModule = new Dictionary<IModule, IEnumerable<IModule>>();
         private bool _topologicalOrderDirty = true;
 
         public void Connect(IModule outputModule, int outputPort, IModule inputModule, int inputPort)
@@ -47,6 +48,7 @@ namespace NFlowGraph.Core
                     SubsequentInputPortNumber = inputPort
                 });
                 _topologicalOrderDirty = true;
+                _antecedentsPerModule.Clear();
             }
 
         }
@@ -76,20 +78,22 @@ namespace NFlowGraph.Core
             //Task.Factory.ContinueWhenAll(outputModuleTasks.ToArray(), t2 => { Console.Write("Done"); });                                     
         }
 
-        public Task<ProcessContext> CreateTask(IModule module, Dictionary<IModule, Task<ProcessContext>> antecidentTasks)
+        public Task<ProcessContext> CreateTask(IModule module, Dictionary<IModule, Task<ProcessContext>> antecedentTasks)
         {
-            IEnumerable<Task> dependents = _edges.Where(e => e.Subsequent.Equals(module)).Select(e => e.Antecedent).Select(m => antecidentTasks[m]).Distinct();
+            if (!_antecedentsPerModule.ContainsKey(module))
+                _antecedentsPerModule[module] = _edges.Where(e => e.Subsequent.Equals(module)).Select(e => e.Antecedent);
+            IEnumerable<Task> dependents = dependents = _antecedentsPerModule[module].Select(m => antecedentTasks[m]);
             long numDependents = dependents.Count();
             if (numDependents > 0)
             {
-                var context = GetProcessContext(module, m => antecidentTasks[m].Result);
+                var context = GetProcessContext(module, m => antecedentTasks[m].Result);
                 return Task.Factory.ContinueWhenAll(dependents.ToArray(), t => {
                     module.Execute(context);
                     return context;
                 });
             }
             {
-                var context = GetProcessContext(module, m => antecidentTasks[m].Result );
+                var context = GetProcessContext(module, m => antecedentTasks[m].Result );
                 return Task.Factory.StartNew(() => {
                     module.Execute(context);
                     return context;
