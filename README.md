@@ -1,3 +1,10 @@
+##### NFlowGraph
+An experimental work-in-progress abstraction of Thread Parallel Library (TPL), 
+
+objective application: 
+- modular audio and video synthesis
+
+
 ```csharp
             InputModule<long> numberGenerator = new InputModule<long>(() => 1);
             InputModule<long> numberGenerator2 = new InputModule<long>(() => 2);
