@@ -20,14 +20,18 @@ namespace NFlowGraph.Core
         public Type[] OutputTypes { get { return _outputTypes; } }
 
         private Func<TInput, TOutput> _process { get; set; }
+        protected Func<TInput, TOutput> Process { get { return _process; } set { _process = value; } }
 
-        public Module(Func<TInput, TOutput> process)
+        public Module(Func<TInput, TOutput> process) : this()
         {
             _process = process;
-
+        }
+        
+        public Module()
+        {
             int numInputs = 0;
             Type[] inputTypes = null;
-            if (typeof(TInput).IsPrimitive) { 
+            if ((typeof(TInput).IsPrimitive) || (typeof(TInput).Equals(typeof(String)))) { 
                 numInputs = 1;
                 inputTypes = new Type[] { typeof(TInput) }; 
             } else if (typeof(TInput).Name.StartsWith("Tuple"))
@@ -35,12 +39,13 @@ namespace NFlowGraph.Core
                 inputTypes = typeof(TInput).GetGenericArguments().ToArray();
                 numInputs = inputTypes.Length;
             }
+
             _numInputs = numInputs;
             _inputTypes = inputTypes;
 
             int numOutputs = 0;
             Type[] outputTypes = null;
-            if (typeof(TOutput).IsPrimitive){
+            if ((typeof(TOutput).IsPrimitive) || (typeof(TOutput).Equals(typeof(String)))) {
                 numOutputs = 1;
                 outputTypes = new Type[] { typeof(TOutput) };
             }
@@ -56,7 +61,7 @@ namespace NFlowGraph.Core
         public void Execute(ProcessContext context)
         {
             TInput input = default(TInput);
-            if (typeof(TInput).IsPrimitive)
+            if ((typeof(TInput).IsPrimitive) || (typeof(TInput).Equals(typeof(String))))
             {
                 if (context.Inputs[0] != null)
                     input = (TInput)context.Inputs[0];
@@ -75,7 +80,7 @@ namespace NFlowGraph.Core
             {
                 TOutput output = _process(input);
 
-                if (typeof(TOutput).IsPrimitive)
+                if ((typeof(TOutput).IsPrimitive) || (typeof(TOutput).Equals(typeof(String))))
                 {
                     context.Outputs[0] = output;
                 }
