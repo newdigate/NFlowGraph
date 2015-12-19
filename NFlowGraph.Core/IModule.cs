@@ -10,6 +10,8 @@ namespace NFlowGraph.Core
     {
         int NumInputs { get; }
         int NumOutputs { get; }
+        Type[] InputTypes { get; }
+        Type[] OutputTypes { get; }
         void Execute(ProcessContext context);
     }
 

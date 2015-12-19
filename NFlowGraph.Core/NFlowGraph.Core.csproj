@@ -39,7 +39,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="TestApp.cs" />
     <Compile Include="DirectedEdge.cs" />
     <Compile Include="FlowGraph.cs" />
     <Compile Include="IModule.cs" />

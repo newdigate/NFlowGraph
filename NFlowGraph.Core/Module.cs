@@ -11,9 +11,13 @@ namespace NFlowGraph.Core
     {
         private readonly int _numInputs;
         private readonly int _numOutputs;
+        private readonly Type[] _inputTypes;
+        private readonly Type[] _outputTypes;
 
         public int NumInputs { get { return _numInputs; } }
         public int NumOutputs { get { return _numOutputs; } }
+        public Type[] InputTypes { get { return _inputTypes; } }
+        public Type[] OutputTypes { get { return _outputTypes; } }
 
         private Func<TInput, TOutput> _process { get; set; }
 
@@ -22,20 +26,31 @@ namespace NFlowGraph.Core
             _process = process;
 
             int numInputs = 0;
-            if (typeof(TInput).IsPrimitive) numInputs = 1;
-            else if (typeof(TInput).Name.StartsWith("Tuple"))
+            Type[] inputTypes = null;
+            if (typeof(TInput).IsPrimitive) { 
+                numInputs = 1;
+                inputTypes = new Type[] { typeof(TInput) }; 
+            } else if (typeof(TInput).Name.StartsWith("Tuple"))
             {
-                numInputs = typeof(TInput).GetGenericArguments().Count();
+                inputTypes = typeof(TInput).GetGenericArguments().ToArray();
+                numInputs = inputTypes.Length;
             }
             _numInputs = numInputs;
+            _inputTypes = inputTypes;
 
             int numOutputs = 0;
-            if (typeof(TOutput).IsPrimitive) numOutputs = 1;
+            Type[] outputTypes = null;
+            if (typeof(TOutput).IsPrimitive){
+                numOutputs = 1;
+                outputTypes = new Type[] { typeof(TOutput) };
+            }
             else if (typeof(TOutput).Name.StartsWith("Tuple"))
             {
-                numOutputs = typeof(TOutput).GetGenericArguments().Count();
+                outputTypes = typeof(TOutput).GetGenericArguments().ToArray();
+                numOutputs = outputTypes.Length;
             }
             _numOutputs = numOutputs;
+            _outputTypes = outputTypes;
         }
 
         public void Execute(ProcessContext context)
@@ -75,8 +90,7 @@ namespace NFlowGraph.Core
             }
             catch (Exception exc)
             {
-                Console.Write(exc);
-                Console.ReadLine();
+                int i = 0;
             }
         }
     }

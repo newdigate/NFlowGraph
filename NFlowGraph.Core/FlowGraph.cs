@@ -13,6 +13,15 @@ namespace NFlowGraph.Core
 
         public void Connect(IModule outputModule, int outputPort, IModule inputModule, int inputPort)
         {
+            if (outputPort >= outputModule.NumOutputs)
+                throw new InvalidOperationException();
+
+            if (inputPort >= inputModule.NumInputs)
+                throw new InvalidOperationException();
+
+            if (outputModule.OutputTypes[outputPort] != inputModule.InputTypes[inputPort])
+                throw new InvalidOperationException();
+
             if (!_modules.Contains(outputModule))
                 _modules.Add(outputModule);
 
