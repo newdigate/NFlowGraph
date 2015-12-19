@@ -10,6 +10,9 @@ namespace NFlowGraph.Core
     {
         public readonly ISet<IModule> _modules = new HashSet<IModule>();
         public readonly ISet<DirectedEdge<IModule>> _edges = new HashSet<DirectedEdge<IModule>>();
+        
+        private IEnumerable<IModule> _topologicalOrder = null;
+        private bool _topologicalOrderDirty = true;
 
         public void Connect(IModule outputModule, int outputPort, IModule inputModule, int inputPort)
         {
@@ -43,33 +46,30 @@ namespace NFlowGraph.Core
                     Subsequent = inputModule,
                     SubsequentInputPortNumber = inputPort
                 });
+                _topologicalOrderDirty = true;
             }
 
         }
 
         public void Process()
         {
-            IEnumerable<IModule> outputModules = from m in _modules
-                                                 join e in _edges
-                                                     on m equals e.Antecedent into g
-                                                 from f in g.DefaultIfEmpty()
-                                                 where f == null
-                                                 select m;
-            IEnumerable<IModule> t = _modules.TopologicalSort(m =>
-            {
-                var x = _edges.Where(e => e.Subsequent.Equals(m)).Select(e => e.Antecedent);
-                return x;
-            });
+            //IEnumerable<IModule> outputModules = from m in _modules
+            //                                     join e in _edges
+            //                                         on m equals e.Antecedent into g
+            //                                     from f in g.DefaultIfEmpty()
+            //                                     where f == null
+            //                                     select m;
+            if (_topologicalOrderDirty)
+                _topologicalOrder = _modules.TopologicalSort(m =>  _edges.Where(e => e.Subsequent.Equals(m)).Select(e => e.Antecedent)).ToList();
 
             Dictionary<IModule, Task<ProcessContext>> h = new Dictionary<IModule, Task<ProcessContext>>();
-            foreach (IModule m in t)
-            {
+            foreach (IModule m in _topologicalOrder) {
                 h.Add(m, CreateTask(m, h));
             }
 
             int i = 1;
-            IEnumerable<Task<ProcessContext>> outputModuleTasks = outputModules.Select(m => h[m]);
-            foreach (Task<ProcessContext> outputModuleTask in outputModuleTasks)
+            //IEnumerable<Task<ProcessContext>> outputModuleTasks = outputModules.Select(m => h[m]);
+            foreach (Task<ProcessContext> outputModuleTask in h.Values)
             {
                 outputModuleTask.Wait();
             }
@@ -78,38 +78,34 @@ namespace NFlowGraph.Core
 
         public Task<ProcessContext> CreateTask(IModule module, Dictionary<IModule, Task<ProcessContext>> antecidentTasks)
         {
-
-            IEnumerable<Task> dependents = _edges.Where(e => e.Subsequent.Equals(module)).Select(e => e.Antecedent).Select(m => antecidentTasks[m]);
+            IEnumerable<Task> dependents = _edges.Where(e => e.Subsequent.Equals(module)).Select(e => e.Antecedent).Select(m => antecidentTasks[m]).Distinct();
             long numDependents = dependents.Count();
             if (numDependents > 0)
             {
-                return Task.Factory.ContinueWhenAll(dependents.ToArray(), t =>
-                {
-                    var context = GetProcessContext(module, m => antecidentTasks[m].Result);
+                var context = GetProcessContext(module, m => antecidentTasks[m].Result);
+                return Task.Factory.ContinueWhenAll(dependents.ToArray(), t => {
                     module.Execute(context);
                     return context;
                 });
             }
-
-            return Task.Factory.StartNew(() =>
             {
-                var context = GetProcessContext(module, m => antecidentTasks[m].Result);
-                module.Execute(context);
-                return context;
-            });
+                var context = GetProcessContext(module, m => antecidentTasks[m].Result );
+                return Task.Factory.StartNew(() => {
+                    module.Execute(context);
+                    return context;
+                });
+            }
         }
 
         private ProcessContext GetProcessContext(IModule module, Func<IModule, ProcessContext> fnProcessContentForModule)
         {
             object[] inputs = new object[module.NumInputs];
             object[] outputs = new object[module.NumOutputs];
-            for (int i = 0; i < module.NumInputs; i++)
-            {
+            for (int i = 0; i < module.NumInputs; i++) {
 
                 DirectedEdge<IModule> edge = _edges.Where(e => e.Subsequent.Equals(module) && e.SubsequentInputPortNumber == i).FirstOrDefault();
                 bool isInputConnected = edge != null;
-                if (isInputConnected)
-                {
+                if (isInputConnected) {
                     IModule antecedent = edge.Antecedent;
                     ProcessContext antecedentContext = fnProcessContentForModule(antecedent);
                     inputs[i] = antecedentContext.Outputs[edge.AntecedentOutputPortNumber];
